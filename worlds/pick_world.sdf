@@ -1,0 +1,200 @@
+<?xml version="1.0"?>
+<sdf version="1.8">
+    <world name="pick_world">
+        
+        <physics name="1ms" type="bullet_featherstone">
+            <max_step_size>0.001</max_step_size>
+            <real_time_factor>1.0</real_time_factor>
+        </physics>
+
+        <plugin filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics">
+            <engine>
+                <filename>gz-physics-bullet-featherstone-plugin</filename>
+            </engine>
+        </plugin>
+        <plugin filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands"/>
+        <plugin filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster"/>
+        <plugin filename="gz-sim-contact-system"
+            name="gz::sim::systems::Contact"/>
+        <plugin filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+            <render_engine>ogre2</render_engine>
+        </plugin>
+        <plugin filename="gz-sim-pose-publisher-system"
+            name="gz::sim::systems::PosePublisher">
+            <publish_model_pose>true</publish_model_pose>
+            <publish_link_pose>false</publish_link_pose>
+            <publish_collision_pose>false</publish_collision_pose>
+            <publish_visual_pose>false</publish_visual_pose>
+            <update_frequency>30</update_frequency>
+        </plugin>
+
+        <light name="sun" type="directional">
+            <cast_shadows>true</cast_shadows>
+            <pose>0 0 10 0 0 0</pose>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <direction>-0.5 -1 -1</direction>
+        </light>
+
+        <model name="ground_plane">
+            <static>true</static>
+            <link name="link">
+                <collision name="collision">
+                    <geometry>
+                        <plane>
+                            <size>100 100</size>
+                            <normal>0 0 1</normal>
+                        </plane>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <plane>
+                            <size>100 100</size>
+                            <normal>0 0 1</normal>
+                        </plane>
+                    </geometry>
+                    <material>
+                        <ambient>0.8 0.8 0.8 1</ambient>
+                        <diffuse>0.8 0.8 0.8 1</diffuse>
+                    </material>
+                </visual>
+            </link>
+        </model>
+
+    <model name="table">
+      <static>true</static>
+      <pose>0.7 0 0 0 0 0</pose>
+      <link name="link">
+
+        <collision name="top_collision">
+          <pose>0 0 0.475 0 0 0</pose>
+          <geometry>
+            <box><size>0.8 0.8 0.05</size></box>
+          </geometry>
+        </collision>
+        <visual name="top_visual">
+          <pose>0 0 0.475 0 0 0</pose>
+          <geometry>
+            <box><size>0.8 0.8 0.05</size></box>
+          </geometry>
+          <material>
+            <ambient>0.5 0.3 0.1 1</ambient>
+            <diffuse>0.5 0.3 0.1 1</diffuse>
+          </material>
+        </visual>
+
+        <collision name="leg_fl_collision">
+          <pose>0.35 0.35 0.225 0 0 0</pose>
+          <geometry>
+            <box><size>0.05 0.05 0.45</size></box>
+          </geometry>
+        </collision>
+        <visual name="leg_fl_visual">
+          <pose>0.35 0.35 0.225 0 0 0</pose>
+          <geometry>
+            <box><size>0.05 0.05 0.45</size></box>
+          </geometry>
+          <material>
+            <ambient>0.4 0.2 0.05 1</ambient>
+            <diffuse>0.4 0.2 0.05 1</diffuse>
+          </material>
+        </visual>
+
+        <collision name="leg_fr_collision">
+          <pose>0.35 -0.35 0.225 0 0 0</pose>
+          <geometry>
+            <box><size>0.05 0.05 0.45</size></box>
+          </geometry>
+        </collision>
+        <visual name="leg_fr_visual">
+          <pose>0.35 -0.35 0.225 0 0 0</pose>
+          <geometry>
+            <box><size>0.05 0.05 0.45</size></box>
+          </geometry>
+          <material>
+            <ambient>0.4 0.2 0.05 1</ambient>
+            <diffuse>0.4 0.2 0.05 1</diffuse>
+          </material>
+        </visual>
+
+        <collision name="leg_bl_collision">
+          <pose>-0.35 0.35 0.225 0 0 0</pose>
+          <geometry>
+            <box><size>0.05 0.05 0.45</size></box>
+          </geometry>
+        </collision>
+        <visual name="leg_bl_visual">
+          <pose>-0.35 0.35 0.225 0 0 0</pose>
+          <geometry>
+            <box><size>0.05 0.05 0.45</size></box>
+          </geometry>
+          <material>
+            <ambient>0.4 0.2 0.05 1</ambient>
+            <diffuse>0.4 0.2 0.05 1</diffuse>
+          </material>
+        </visual>
+
+        <collision name="leg_br_collision">
+          <pose>-0.35 -0.35 0.225 0 0 0</pose>
+          <geometry>
+            <box><size>0.05 0.05 0.45</size></box>
+          </geometry>
+        </collision>
+        <visual name="leg_br_visual">
+          <pose>-0.35 -0.35 0.225 0 0 0</pose>
+          <geometry>
+            <box><size>0.05 0.05 0.45</size></box>
+          </geometry>
+          <material>
+            <ambient>0.4 0.2 0.05 1</ambient>
+            <diffuse>0.4 0.2 0.05 1</diffuse>
+          </material>
+        </visual>
+
+      </link>
+    </model>
+
+    <model name="red_box">
+      <static>false</static>
+      <pose>0.4 0 0.515 0 0 0</pose>
+      <link name="link">
+        <inertial>
+          <mass>0.05</mass>
+          <inertia>
+            <ixx>0.000015</ixx>
+            <iyy>0.000015</iyy>
+            <izz>0.000015</izz>
+          </inertia>
+        </inertial>
+        <collision name="collision">
+          <geometry>
+            <box><size>0.03 0.03 0.03</size></box>
+          </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>1</mu>
+                <mu2>1</mu2>
+              </ode>
+            </friction>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.03 0.03 0.03</size></box>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    </world>
+</sdf>

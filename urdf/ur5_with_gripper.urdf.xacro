@@ -1,0 +1,183 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+  <xacro:arg name="name"                  default="ur"/>
+  <xacro:arg name="ur_type"               default="ur5"/>
+  <xacro:arg name="tf_prefix"             default=""/>
+  <xacro:arg name="joint_limit_params"    default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+  <xacro:arg name="kinematics_params"     default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+  <xacro:arg name="physical_params"       default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+  <xacro:arg name="visual_params"         default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+  <xacro:arg name="transmission_hw_interface" default=""/>
+  <xacro:arg name="safety_limits"         default="false"/>
+  <xacro:arg name="safety_pos_margin"     default="0.15"/>
+  <xacro:arg name="safety_k_position"     default="20"/>
+  <xacro:arg name="simulation_controllers" default=""/>
+  <xacro:arg name="ros_namespace"         default=""/>
+
+  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+
+  <xacro:include filename="$(find ur_simulation_gz)/urdf/ur_gz.ros2_control.xacro"/>
+
+  <xacro:include filename="$(find robotiq_description)/urdf/ur_to_robotiq_adapter.urdf.xacro"/>
+
+  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro"/>
+
+  <link name="world"/>
+
+  <xacro:ur_robot
+    name="$(arg name)"
+    tf_prefix="$(arg tf_prefix)"
+    parent="world"
+    joint_limits_parameters_file="$(arg joint_limit_params)"
+    kinematics_parameters_file="$(arg kinematics_params)"
+    physical_parameters_file="$(arg physical_params)"
+    visual_parameters_file="$(arg visual_params)"
+    safety_limits="$(arg safety_limits)"
+    safety_pos_margin="$(arg safety_pos_margin)"
+    safety_k_position="$(arg safety_k_position)"
+    force_abs_paths="false">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:ur_robot>
+
+  <xacro:ur_to_robotiq
+    prefix="$(arg tf_prefix)"
+    connected_to="$(arg tf_prefix)tool0"/>
+
+  <xacro:robotiq_gripper
+    name="gripper"
+    prefix="$(arg tf_prefix)"
+    parent="$(arg tf_prefix)gripper_mount_link"
+    sim_ignition="true"
+    include_ros2_control="false">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:robotiq_gripper>
+
+<ros2_control name="gripper" type="system">
+  <hardware>
+    <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+  </hardware>
+  
+  <joint name="robotiq_85_left_knuckle_joint">
+    <command_interface name="position"/>
+    <state_interface name="position">
+      <param name="initial_value">0.7929</param>
+    </state_interface>
+    <state_interface name="velocity"/>
+  </joint>
+  
+  <joint name="robotiq_85_right_knuckle_joint">
+    <param name="mimic">robotiq_85_left_knuckle_joint</param>
+    <param name="multiplier">-1</param>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+  
+  <joint name="robotiq_85_left_inner_knuckle_joint">
+    <param name="mimic">robotiq_85_left_knuckle_joint</param>
+    <param name="multiplier">1</param>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+  
+  <joint name="robotiq_85_right_inner_knuckle_joint">
+    <param name="mimic">robotiq_85_left_knuckle_joint</param>
+    <param name="multiplier">-1</param>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+  
+  <joint name="robotiq_85_left_finger_tip_joint">
+    <param name="mimic">robotiq_85_left_knuckle_joint</param>
+    <param name="multiplier">-1</param>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+  
+  <joint name="robotiq_85_right_finger_tip_joint">
+    <param name="mimic">robotiq_85_left_knuckle_joint</param>
+    <param name="multiplier">1</param>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+</ros2_control>
+
+
+  <gazebo reference="world"/>
+  <gazebo>
+    <plugin filename="gz_ros2_control-system"
+            name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(arg simulation_controllers)</parameters>
+      <ros>
+        <namespace>$(arg ros_namespace)</namespace>
+      </ros>
+    </plugin>
+  </gazebo>
+
+  <xacro:ur_ros2_control
+    name="$(arg name)"
+    tf_prefix="$(arg tf_prefix)"
+    transmission_hw_interface="$(arg transmission_hw_interface)"
+  />
+
+  <link name="wrist_camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.03 0.03 0.02"/>
+      </geometry>
+      <material name="camera_black">
+        <color rgba="0.1 0.1 0.1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.03 0.03 0.02"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001"/>
+    </inertial>
+  </link>
+
+  <joint name="wrist_camera_joint" type="fixed">
+    <parent link="tool0"/>
+    <child link="wrist_camera_link"/>
+    <origin xyz="0 -0.04 -0.01" rpy="0 -1.5708 0"/>
+  </joint>
+
+  <link name="wrist_camera_optical_link"/>
+  <joint name="wrist_camera_optical_joint" type="fixed">
+    <parent link="wrist_camera_link"/>
+    <child link="wrist_camera_optical_link"/>
+    <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+  </joint>
+
+  <gazebo reference="wrist_camera_link">
+    <sensor name="wrist_camera" type="camera">
+      <always_on>1</always_on>
+      <update_rate>10</update_rate>
+      <visualize>true</visualize>
+      <camera name="wrist_camera">
+        <horizontal_fov>1.047</horizontal_fov>  
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>5.0</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.005</stddev>
+        </noise>
+      </camera>
+    </sensor>
+  </gazebo>
+
+</robot>
