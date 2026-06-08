@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 from moveit.planning import MoveItPy
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PointStamped
 from control_msgs.action import GripperCommand
 import time
 
@@ -17,6 +17,15 @@ class PickAndPlace(Node):
 
         self.gripper_client = ActionClient(
             self, GripperCommand, '/gripper_controller/gripper_cmd'
+        )
+
+        self.detected_x = None
+        self.detected_y = None
+        self.create_subscription(
+            PointStamped,
+            '/box_world_pose',
+            self.detection_callback,
+            10
         )
 
     def move_to_pose(self, x, y, z, qx=0.0, qy=1.0, qz=0.0, qw=0.0):
@@ -65,9 +74,11 @@ class PickAndPlace(Node):
         self.get_logger().info('Closing Gripper')
         self.gripper_command(0.8)
 
+    def detection_callback(self, msg):
+        self.detected_x = msg.point.x
+        self.detected_y = msg.point.y
+
     def run(self):
-        BOX_X = 0.4
-        BOX_Y = 0.0
         GRASP_Z = 0.68
         PRE_GRASP_Z = 0.72
         LIFT_Z = 0.72
@@ -76,21 +87,39 @@ class PickAndPlace(Node):
         self.get_logger().info('Starting Pick and Place')
         self.open_gripper()
 
-        self.get_logger().info('Step 1: Pre-Grasp')
+        self.get_logger().info('Step 1: Scanning for box...')
+        if not self.move_to_pose(0.4, 0.0, PRE_GRASP_Z, QX, QY, QZ, QW):
+            return
+
+        self.get_logger().info('Waiting for box detection...')
+        for i in range(50):
+            rclpy.spin_once(self, timeout_sec=0.1)
+            if self.detected_x is not None:
+                self.get_logger().info('Box detected!')
+                break
+        else:
+            self.get_logger().error('Box not detected')
+            return
+
+        BOX_X = self.detected_x
+        BOX_Y = self.detected_y
+        self.get_logger().info(f'Box detected at ({BOX_X:.3f}, {BOX_Y:.3f})')
+
+        self.get_logger().info('Step 2: Pre-Grasp')
         if not self.move_to_pose(BOX_X, BOX_Y, PRE_GRASP_Z, QX, QY, QZ, QW):
             return
 
-        self.get_logger().info('Step 2: Grasp')
+        self.get_logger().info('Step 3: Grasp')
         if not self.move_to_pose(BOX_X, BOX_Y, GRASP_Z, QX, QY, QZ, QW):
             return
 
         self.close_gripper()
 
-        self.get_logger().info('Step 3: Lift')
+        self.get_logger().info('Step 4: Lift')
         if not self.move_to_pose(BOX_X, BOX_Y, LIFT_Z, QX, QY, QZ, QW):
             return
 
-        self.get_logger().info('Step 4: Move to drop')
+        self.get_logger().info('Step 5: Move to drop')
         if not self.move_to_pose(0.2, 0.35, LIFT_Z, QX, QY, QZ, QW):
             return
 

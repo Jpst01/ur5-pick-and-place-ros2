@@ -40,6 +40,7 @@ setup(
             'pick_and_place = ur5_controller.pick_and_place:main',
             'box_pose_bridge = ur5_controller.box_pose_bridge:main',
             'detect_box = ur5_controller.detect_box:main',
+            'pixel_to_world = ur5_controller.pixel_to_world:main',
         ],
     },
 )
