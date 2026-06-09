@@ -3,6 +3,7 @@ from rclpy.node import Node
 from rclpy.action import ActionClient
 from moveit.planning import MoveItPy
 from geometry_msgs.msg import PoseStamped, PointStamped
+from sensor_msgs.msg import JointState
 from control_msgs.action import GripperCommand
 import time
 
@@ -25,6 +26,15 @@ class PickAndPlace(Node):
             PointStamped,
             '/box_world_pose',
             self.detection_callback,
+            10
+        )
+
+        # Track joint velocities to know when arm has settled
+        self.joint_velocities = []
+        self.create_subscription(
+            JointState,
+            'joint_states',
+            self.joint_state_callback,
             10
         )
 
@@ -78,6 +88,9 @@ class PickAndPlace(Node):
         self.detected_x = msg.point.x
         self.detected_y = msg.point.y
 
+    def joint_state_callback(self, msg):
+        self.joint_velocities = list(msg.velocity) if msg.velocity else []
+
     def run(self):
         GRASP_Z = 0.68
         PRE_GRASP_Z = 0.72
@@ -85,25 +98,58 @@ class PickAndPlace(Node):
         QX, QY, QZ, QW = 0.0, 1.0, 0.0, 0.0
 
         self.get_logger().info('Starting Pick and Place')
+
+        # Wait for arm to settle (joint velocities near zero)
+        self.get_logger().info('Waiting for arm to settle...')
+        for i in range(100):  # 10s max
+            rclpy.spin_once(self, timeout_sec=0.1)
+            if self.joint_velocities and all(abs(v) < 0.01 for v in self.joint_velocities):
+                self.get_logger().info('Arm settled!')
+                break
+        else:
+            self.get_logger().warn('Arm may not be fully settled, proceeding anyway')
+
         self.open_gripper()
 
+        # Move to home first (joint-space, more robust)
+        self.get_logger().info('Step 0: Moving to home position...')
+        self.arm.set_start_state_to_current_state()
+        self.arm.set_goal_state(configuration_name='home')
+        plan_result = self.arm.plan()
+        if plan_result:
+            self.moveit.execute(plan_result.trajectory, controllers=[])
+            time.sleep(5)
+        self.get_logger().info('At home position')
+
+        # Now scan for box
         self.get_logger().info('Step 1: Scanning for box...')
         if not self.move_to_pose(0.4, 0.0, PRE_GRASP_Z, QX, QY, QZ, QW):
             return
 
+        # Reset any stale detection
+        self.detected_x = None
+        self.detected_y = None
+
         self.get_logger().info('Waiting for box detection...')
-        for i in range(50):
+        readings_x = []
+        readings_y = []
+        for i in range(100):  # 10 seconds max
             rclpy.spin_once(self, timeout_sec=0.1)
             if self.detected_x is not None:
-                self.get_logger().info('Box detected!')
-                break
-        else:
+                readings_x.append(self.detected_x)
+                readings_y.append(self.detected_y)
+                self.detected_x = None
+                self.detected_y = None
+                if len(readings_x) >= 5:  # average 5 readings
+                    break
+
+        if len(readings_x) == 0:
             self.get_logger().error('Box not detected')
             return
 
-        BOX_X = self.detected_x
-        BOX_Y = self.detected_y
-        self.get_logger().info(f'Box detected at ({BOX_X:.3f}, {BOX_Y:.3f})')
+        BOX_X = sum(readings_x) / len(readings_x)
+        BOX_Y = sum(readings_y) / len(readings_y)
+        self.get_logger().info(f'Box detected at ({BOX_X:.3f}, {BOX_Y:.3f}) from {len(readings_x)} readings')
 
         self.get_logger().info('Step 2: Pre-Grasp')
         if not self.move_to_pose(BOX_X, BOX_Y, PRE_GRASP_Z, QX, QY, QZ, QW):
@@ -139,7 +185,7 @@ class PickAndPlace(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = PickAndPlace()
-    time.sleep(5)
+    time.sleep(10)  # Wait for arm to settle in Gazebo
     try:
         node.run()
     except Exception as e:
