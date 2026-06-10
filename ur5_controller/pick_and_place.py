@@ -82,7 +82,7 @@ class PickAndPlace(Node):
 
     def close_gripper(self):
         self.get_logger().info('Closing Gripper')
-        self.gripper_command(0.8)
+        self.gripper_command(1.0)
 
     def detection_callback(self, msg):
         self.detected_x = msg.point.x
@@ -149,7 +149,14 @@ class PickAndPlace(Node):
 
         BOX_X = sum(readings_x) / len(readings_x)
         BOX_Y = sum(readings_y) / len(readings_y)
-        self.get_logger().info(f'Box detected at ({BOX_X:.3f}, {BOX_Y:.3f}) from {len(readings_x)} readings')
+        self.get_logger().info(f'Raw detection: ({BOX_X:.3f}, {BOX_Y:.3f}) from {len(readings_x)} readings')
+
+        # Calibration offsets (tune these if gripper misses the box)
+        OFFSET_X = 0.005   # positive = move gripper further from robot
+        OFFSET_Y = 0.02    # positive = move gripper to the left
+        BOX_X += OFFSET_X
+        BOX_Y += OFFSET_Y
+        self.get_logger().info(f'Adjusted target: ({BOX_X:.3f}, {BOX_Y:.3f})')
 
         self.get_logger().info('Step 2: Pre-Grasp')
         if not self.move_to_pose(BOX_X, BOX_Y, PRE_GRASP_Z, QX, QY, QZ, QW):
