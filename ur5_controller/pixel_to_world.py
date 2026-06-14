@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Point, PointStamped
+from geometry_msgs.msg import PointStamped
+from std_msgs.msg import String
 from sensor_msgs.msg import CameraInfo
 import tf2_ros
 from tf2_geometry_msgs import do_transform_point
@@ -10,10 +11,10 @@ class PixelToWorld(Node):
     def __init__(self):
         super().__init__('pixel_to_world')
 
-        self.fx = None  
-        self.fy = None  
-        self.cx = None  
-        self.cy = None  
+        self.fx = None
+        self.fy = None
+        self.cx = None
+        self.cy = None
 
         self.table_z = 0.515
 
@@ -28,30 +29,32 @@ class PixelToWorld(Node):
         )
 
         self.create_subscription(
-            Point,
-            '/detected_box',
+            String,
+            '/detected_objects',
             self.detected_box_callback,
             10
         )
 
-        self.pub = self.create_publisher(PointStamped, '/box_world_pose', 10)
+        self.pub = self.create_publisher(String, '/box_world_poses', 10)
 
         self.get_logger().info('PixelToWorld node started')
 
     def camera_info_callback(self, msg):
-        
         self.fx = msg.k[0]
         self.fy = msg.k[4]
         self.cx = msg.k[2]
         self.cy = msg.k[5]
-        pass
 
     def detected_box_callback(self, msg):
         if self.fx is None:
             return
 
-        pixel_x = msg.x
-        pixel_y = msg.y
+        parts = msg.data.split(':')
+        if len(parts) != 3:
+            return
+        color = parts[0]
+        pixel_x = float(parts[1])
+        pixel_y = float(parts[2])
 
         try:
             transform = self.tf_buffer.lookup_transform(
@@ -63,24 +66,24 @@ class PixelToWorld(Node):
             return
 
         depth = transform.transform.translation.z - self.table_z
-        
+
         x_cam = (pixel_x - self.cx) * depth / self.fx
         y_cam = (pixel_y - self.cy) * depth / self.fy
         z_cam = depth
-        
+
         point_cam = PointStamped()
         point_cam.header.frame_id = 'wrist_camera_optical_link'
-        
+
         point_cam.point.x = x_cam
         point_cam.point.y = y_cam
         point_cam.point.z = z_cam
-        
-        point_world = do_transform_point(point_cam, transform)
-        
-        self.pub.publish(point_world)
-        self.get_logger().info(f'Box at world: ({point_world.point.x:.3f}, {point_world.point.y:.3f}, {point_world.point.z:.3f})')
 
-        pass
+        point_world = do_transform_point(point_cam, transform)
+
+        out = String()
+        out.data = f"{color}:{point_world.point.x:.4f}:{point_world.point.y:.4f}:{point_world.point.z:.4f}"
+        self.pub.publish(out)
+        self.get_logger().info(f'{color} box at world: ({point_world.point.x:.3f}, {point_world.point.y:.3f})')
 
 
 def main(args=None):

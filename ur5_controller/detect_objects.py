@@ -40,20 +40,20 @@ class DetectObjects(Node):
         frame = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-        for i in self.color_ranges:
-            if "lower1" in i:
-                lower1 = np.array(i["lower1"])
-            if "upper1" in i:
-                upper1 = np.array(i["upper1"])
-            if "lower2" in i:
-                lower2 = np.array(i["lower2"])
-            if "upper2" in i:
-                upper2 = np.array(i["upper2"])
+        for color, ranges in self.color_ranges.items():
+            if "lower1" in ranges:
+                lower1 = np.array(ranges["lower1"])
+            if "upper1" in ranges:
+                upper1 = np.array(ranges["upper1"])
+            if "lower2" in ranges:
+                lower2 = np.array(ranges["lower2"])
+            if "upper2" in ranges:
+                upper2 = np.array(ranges["upper2"])
 
-            if "lower1" in i and "upper1" in i:
+            if "lower1" in ranges and "upper1" in ranges:
                 mask1 = cv2.inRange(hsv, lower1, upper1)
 
-            if "lower2" in i and "upper2" in i:
+            if "lower2" in ranges and "upper2" in ranges:
                 mask2 = cv2.inRange(hsv, lower2, upper2)
                 mask = cv2.bitwise_or(mask1, mask2)
             else:
@@ -62,12 +62,15 @@ class DetectObjects(Node):
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             for c in contours:
-                if cv2.contourArea(c) > 100:
+                area = cv2.contourArea(c)
+                if 100 < area < 15000:
                     M = cv2.moments(c)
+                    if M["m00"] == 0:
+                        continue
                     cx = int(M["m10"] / M["m00"])
                     cy = int(M["m01"] / M["m00"])
                     cv2.circle(frame, (cx, cy), 5, (0, 255, 0), -1)
-                    self.pub.publish(String(data=f"{i}:{cx}:{cy}"))
+                    self.pub.publish(String(data=f"{color}:{cx}:{cy}"))
 
         cv2.imshow('Detection', frame)
         cv2.waitKey(1)

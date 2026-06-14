@@ -41,6 +41,7 @@ setup(
             'box_pose_bridge = ur5_controller.box_pose_bridge:main',
             'detect_box = ur5_controller.detect_box:main',
             'pixel_to_world = ur5_controller.pixel_to_world:main',
+            'detect_objects = ur5_controller.detect_objects:main',
         ],
     },
 )
